@@ -133,24 +133,6 @@ tr:last-child td{border-bottom:0}
   </div>
 </main>
 
-<div class="modal" id="consent" role="dialog" aria-modal="true" aria-labelledby="ctitle">
-  <div class="card">
-    <h2 id="ctitle">Collecte de données</h2>
-    <p>En jouant en invité, ces informations sont enregistrées :</p>
-    <ul>
-      <li>ton adresse IP (récupérée via le service tiers ipify)</li>
-      <li>la date et l'heure de ta connexion</li>
-      <li>ton navigateur et ton système</li>
-      <li>ta langue, ton fuseau horaire et la taille de ton écran</li>
-    </ul>
-    <p>Elles sont consultables dans la page d'admin, uniquement pour suivre les connexions, et l'admin peut les supprimer à tout moment. Si tu refuses, tu ne pourras pas jouer en invité.</p>
-    <div class="actions">
-      <button class="ghost" id="btnRefuse">Refuser</button>
-      <button class="primary" id="btnAccept">Accepter et jouer</button>
-    </div>
-  </div>
-</div>
-
 <script>
 (function(){
   var $ = function(id){ return document.getElementById(id); };

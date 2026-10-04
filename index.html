@@ -50,6 +50,26 @@ canvas{display:block;width:100%;height:auto;touch-action:none}
 .admin{text-align:center}
 .admin h1{font-size:34px;margin-bottom:10px}
 .admin .badge{display:inline-block;border:2px solid var(--accent);color:var(--accent);border-radius:8px;padding:6px 12px;margin-bottom:20px;font-weight:600}
+#admin{max-width:760px}
+.admin{text-align:left}
+.admin h1{font-size:28px;margin:0}
+.admin .badge{margin:0}
+.stats{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin-bottom:12px}
+.note{color:var(--muted);font-size:13px;line-height:1.5;margin:0 0 14px}
+.tbl{overflow-x:auto;border:1px solid var(--border);border-radius:8px;margin-bottom:14px}
+table{border-collapse:collapse;width:100%;font-size:14px;min-width:560px}
+th,td{padding:8px 10px;text-align:left;border-bottom:1px solid var(--border);white-space:nowrap}
+th{color:var(--muted);font-weight:600}
+tr:last-child td{border-bottom:0}
+.empty{padding:18px;text-align:center;color:var(--muted)}
+.actions{display:flex;gap:8px;flex-wrap:wrap}
+.actions button{flex:1}
+.modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;padding:16px;background:rgba(0,0,0,.55);z-index:10}
+.modal.on{display:flex}
+.modal .card{max-width:440px;width:100%}
+.modal h2{font-size:20px;margin-bottom:10px}
+.modal ul{margin:0 0 14px;padding-left:20px;line-height:1.6}
+.modal p{margin:0 0 12px;line-height:1.5}
 </style>
 </head>
 <body>
@@ -94,11 +114,42 @@ canvas{display:block;width:100%;height:auto;touch-action:none}
 
 <main id="admin" class="screen">
   <div class="card admin">
-    <h1>Page d'admin</h1>
-    <div class="badge">Connecté en admin</div>
-    <button class="ghost full" data-logout>Se déconnecter</button>
+    <div class="stats">
+      <h1>Page d'admin</h1>
+      <div class="badge" id="count">0 connexion</div>
+    </div>
+    <p class="note">Journal des connexions en invité. Ces données sont stockées uniquement dans ce navigateur : pour voir celles de tous les visiteurs, il faut une base de données en ligne.</p>
+    <div class="tbl">
+      <table>
+        <thead><tr><th>Date</th><th>Adresse IP</th><th>Navigateur / système</th><th>Langue</th><th>Fuseau</th><th>Écran</th></tr></thead>
+        <tbody id="rows"></tbody>
+      </table>
+      <div class="empty" id="empty">Aucune connexion invité enregistrée.</div>
+    </div>
+    <div class="actions">
+      <button class="ghost" id="btnClear">Vider le journal</button>
+      <button class="ghost" data-logout>Se déconnecter</button>
+    </div>
   </div>
 </main>
+
+<div class="modal" id="consent" role="dialog" aria-modal="true" aria-labelledby="ctitle">
+  <div class="card">
+    <h2 id="ctitle">Collecte de données</h2>
+    <p>En jouant en invité, ces informations sont enregistrées :</p>
+    <ul>
+      <li>ton adresse IP (récupérée via le service tiers ipify)</li>
+      <li>la date et l'heure de ta connexion</li>
+      <li>ton navigateur et ton système</li>
+      <li>ta langue, ton fuseau horaire et la taille de ton écran</li>
+    </ul>
+    <p>Elles sont consultables dans la page d'admin, uniquement pour suivre les connexions, et l'admin peut les supprimer à tout moment. Si tu refuses, tu ne pourras pas jouer en invité.</p>
+    <div class="actions">
+      <button class="ghost" id="btnRefuse">Refuser</button>
+      <button class="primary" id="btnAccept">Accepter et jouer</button>
+    </div>
+  </div>
+</div>
 
 <script>
 (function(){
@@ -114,7 +165,7 @@ canvas{display:block;width:100%;height:auto;touch-action:none}
   var ADMIN_CODE = '0000';
   function tryAdmin(){
     if ($('code').value === ADMIN_CODE){
-      $('err').textContent = ''; $('code').value = ''; show('admin');
+      $('err').textContent = ''; $('code').value = ''; renderAdmin(); show('admin');
     } else {
       $('err').textContent = 'Code incorrect. Réessaie.';
       $('code').select();
@@ -123,10 +174,67 @@ canvas{display:block;width:100%;height:auto;touch-action:none}
   $('btnAdmin').onclick = tryAdmin;
   $('code').addEventListener('keydown', function(e){ if (e.key === 'Enter') tryAdmin(); });
   $('code').addEventListener('input', function(){ $('err').textContent = ''; });
-  $('btnGuest').onclick = function(){ show('game'); startGame(); };
+  $('btnGuest').onclick = function(){ $('consent').classList.add('on'); $('btnAccept').focus(); };
+  $('btnRefuse').onclick = function(){ $('consent').classList.remove('on'); };
+  $('btnAccept').onclick = function(){
+    $('consent').classList.remove('on');
+    show('game'); startGame(); logVisit();
+  };
   Array.prototype.forEach.call(document.querySelectorAll('[data-logout]'), function(b){
     b.onclick = function(){ stopGame(); show('login'); };
   });
+
+  /* ---- Journal des connexions invité ---- */
+  var LOG_KEY = 'snake-journal';
+  function readLog(){ try { return JSON.parse(localStorage.getItem(LOG_KEY) || '[]'); } catch(e){ return []; } }
+  function saveLog(l){ try { localStorage.setItem(LOG_KEY, JSON.stringify(l.slice(-200))); } catch(e){} }
+  function parseUA(ua){
+    var b = /Edg\//.test(ua) ? 'Edge' : /OPR\//.test(ua) ? 'Opera' : /Firefox\//.test(ua) ? 'Firefox' : /Chrome\//.test(ua) ? 'Chrome' : /Safari\//.test(ua) ? 'Safari' : 'Autre';
+    var o = /Windows/.test(ua) ? 'Windows' : /Android/.test(ua) ? 'Android' : /iPhone|iPad/.test(ua) ? 'iOS' : /Mac OS X/.test(ua) ? 'macOS' : /Linux/.test(ua) ? 'Linux' : 'Autre';
+    return b + ' / ' + o;
+  }
+  function logVisit(){
+    var entry = {
+      t: Date.now(), ip: 'non disponible', nav: parseUA(navigator.userAgent),
+      lang: navigator.language || '?',
+      tz: (Intl.DateTimeFormat().resolvedOptions().timeZone || '?'),
+      ecran: screen.width + '×' + screen.height
+    };
+    var done = function(){ var l = readLog(); l.push(entry); saveLog(l); };
+    try {
+      var ctl = new AbortController(), to = setTimeout(function(){ ctl.abort(); }, 4000);
+      fetch('https://api.ipify.org?format=json', { signal: ctl.signal })
+        .then(function(r){ return r.json(); })
+        .then(function(j){ if (j && j.ip) entry.ip = j.ip; })
+        .catch(function(){})
+        .then(function(){ clearTimeout(to); done(); });
+    } catch(e){ done(); }
+  }
+  function renderAdmin(){
+    var l = readLog().slice().reverse(), body = $('rows');
+    body.textContent = '';
+    $('count').textContent = l.length + (l.length > 1 ? ' connexions' : ' connexion');
+    $('empty').style.display = l.length ? 'none' : 'block';
+    l.forEach(function(e){
+      var tr = document.createElement('tr');
+      [new Date(e.t).toLocaleString('fr-FR'), e.ip, e.nav, e.lang, e.tz, e.ecran].forEach(function(v){
+        var td = document.createElement('td'); td.textContent = v; tr.appendChild(td);
+      });
+      body.appendChild(tr);
+    });
+  }
+  var armed = null;
+  $('btnClear').onclick = function(){
+    var b = this;
+    if (!armed){
+      b.textContent = 'Confirmer la suppression';
+      armed = setTimeout(function(){ armed = null; b.textContent = 'Vider le journal'; }, 4000);
+      return;
+    }
+    clearTimeout(armed); armed = null;
+    b.textContent = 'Vider le journal';
+    saveLog([]); renderAdmin();
+  };
 
   /* ---- Snake ---- */
   var cv = $('cv'), ctx = cv.getContext('2d');

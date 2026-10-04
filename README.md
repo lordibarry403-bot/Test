@@ -7,6 +7,8 @@ Petite page web en HTML, CSS et JavaScript pur (un seul fichier, aucune dépenda
 - **Connexion en invité** : on peut jouer à Snake (clavier, boutons à l'écran ou glisser le doigt sur mobile). Le record est gardé dans le navigateur.
 - **Connexion admin** avec le code `0000` : ouvre la « Page d'admin ».
 - Thème clair ou sombre selon l'appareil, adapté au téléphone.
+- **Avertissement de collecte de données** avant la connexion en invité (adresse IP, date et heure, navigateur et système, langue, fuseau horaire, écran). Le visiteur peut accepter ou refuser.
+- La **Page d'admin** affiche le journal de ces connexions et permet de le vider.
 
 ## Lancer en local
 
@@ -41,6 +43,8 @@ snake-login/
 ## Sécurité
 
 Le code admin est vérifié dans le navigateur : il est visible dans le code source. C'est suffisant pour un projet ou un exercice, mais pas pour protéger de vraies données. Un vrai site doit vérifier le code côté serveur.
+
+Le journal des connexions est stocké dans le navigateur (`localStorage`) de chaque visiteur : l'admin ne voit que les connexions faites depuis son propre navigateur. Pour centraliser les données de tous les visiteurs, il faut une base de données en ligne (par exemple Supabase ou Firebase). L'adresse IP est une donnée personnelle (RGPD) : garde l'avertissement affiché, ne collecte que le nécessaire et supprime les données régulièrement.
 
 ## Licence
 
